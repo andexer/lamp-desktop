@@ -1,0 +1,45 @@
+services:
+  web:
+    image: php:8.4-apache
+    container_name: cakephp-web
+    ports:
+      - "80:80"
+    volumes:
+      - ./www:/var/www/html
+    environment:
+      - TZ=UTC
+    networks:
+      - lamp-network
+
+  db:
+    image: mariadb:latest
+    container_name: cakephp-db
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cakephp
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    networks:
+      - lamp-network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: cakephp-pma
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "8585:80"
+    networks:
+      - lamp-network
+
+networks:
+  lamp-network:
+    driver: bridge
