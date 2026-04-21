@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:linux": "APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=1 tauri build"
   },
   "license": "MIT",
   "dependencies": {
