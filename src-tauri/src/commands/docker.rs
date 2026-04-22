@@ -35,6 +35,28 @@ pub async fn check_docker() -> Result<DependencyStatus, String> {
     })
 }
 
+pub fn generate_php_ini_content(config: &LampConfig) -> String {
+    let mut php_ini_content = format!(
+r#"memory_limit = {}
+max_execution_time = {}
+upload_max_filesize = {}
+post_max_size = {}
+display_errors = {}
+"#,
+        config.php_memory_limit,
+        config.php_max_execution_time,
+        config.php_upload_max_filesize,
+        config.php_post_max_size,
+        if config.php_display_errors { "On" } else { "Off" }
+    );
+
+    for ext in &config.php_extensions {
+        php_ini_content.push_str(&format!("extension={}\n", ext));
+    }
+
+    php_ini_content
+}
+
 #[tauri::command]
 pub async fn create_project(config: LampConfig) -> Result<String, String> {
     let project_path = config.project_path.clone();
@@ -42,25 +64,36 @@ pub async fn create_project(config: LampConfig) -> Result<String, String> {
         fs::create_dir_all(&project_path).map_err(|e| e.to_string())?;
     }
 
-    // Prepare Documentos/www path
-    let mut docs_www = dirs::home_dir().ok_or("Could not find home directory")?;
-    docs_www.push("Documentos");
-    docs_www.push("www");
-    docs_www.push(&config.name);
+    // Determine working directory
+    let resolved_working_dir = match config.working_dir.clone() {
+        Some(path) => path,
+        None => {
+            let mut path = dirs::document_dir().ok_or("Could not find Documents directory")?;
+            path.push("www");
+            path.push(&config.name);
+            path
+        }
+    };
     
-    if !docs_www.exists() {
-        fs::create_dir_all(&docs_www).map_err(|e| e.to_string())?;
-        fs::write(docs_www.join("index.php"), "<?php phpinfo(); ?>").map_err(|e| e.to_string())?;
+    if !resolved_working_dir.exists() {
+        fs::create_dir_all(&resolved_working_dir).map_err(|e| e.to_string())?;
+        fs::write(resolved_working_dir.join("index.php"), "<?php phpinfo(); ?>").map_err(|e| e.to_string())?;
     }
 
-    // Create symlink inside ~/.lamp-desktop/projects/<name>/www pointing to ~/Documentos/www/<name>
+    // Create symlink inside ~/.lamp-desktop/projects/<name>/www pointing to the resolved working dir
     let www_link = project_path.join("www");
     if !www_link.exists() {
-        symlink(&docs_www, &www_link).map_err(|e| e.to_string())?;
+        symlink(&resolved_working_dir, &www_link).map_err(|e| e.to_string())?;
     }
 
     let compose_content = generate_docker_compose(&config);
     fs::write(project_path.join("docker-compose.yml"), compose_content).map_err(|e| e.to_string())?;
+
+    let php_ini_path = project_path.join("lamp.ini");
+    if !php_ini_path.exists() {
+        let php_ini_content = generate_php_ini_content(&config);
+        fs::write(php_ini_path, php_ini_content).map_err(|e| e.to_string())?;
+    }
 
     Ok("Project created successfully".to_string())
 }

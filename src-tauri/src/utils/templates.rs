@@ -6,10 +6,12 @@ r#"services:
   web:
     image: php:{}-apache
     container_name: {}-web
+    hostname: {}
     ports:
       - "{}:80"
     volumes:
       - ./www:/var/www/html
+      - ./lamp.ini:/usr/local/etc/php/conf.d/lamp.ini
     environment:
       - TZ={}
     networks:
@@ -44,12 +46,22 @@ r#"services:
     networks:
       - lamp-network
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: {}-mail
+    ports:
+      - "{}:8025"
+      - "1025:1025"
+    networks:
+      - lamp-network
+
 networks:
   lamp-network:
     driver: bridge
 "#,
-        config.php_version, config.name, config.apache_port, config.timezone,
+        config.php_version, config.name, config.hostname, config.apache_port, config.timezone,
         config.name, config.mysql_root_password, config.mysql_database, config.mysql_user, config.mysql_password, config.mysql_port,
-        config.name, config.mysql_root_password, config.phpmyadmin_port
+        config.name, config.mysql_root_password, config.phpmyadmin_port,
+        config.name, config.mailpit_port
     )
 }

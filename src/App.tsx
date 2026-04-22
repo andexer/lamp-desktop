@@ -8,6 +8,7 @@ import { Navbar } from "./components/Navbar";
 import { Dashboard } from "./components/Dashboard";
 import { Footer } from "./components/Footer";
 import { ProjectWizard } from "./components/ProjectWizard";
+import { PhpSettingsDialog } from "./components/PhpSettingsDialog";
 import { Console } from "./components/Console";
 import { DependencyAlert, type DependencyStatus } from "./components/DependencyAlert";
 import { t } from "./i18n";
@@ -24,20 +25,37 @@ interface LampConfig {
   mysql_password: string;
   timezone: string;
   project_path: string;
+  working_dir: string | null;
+  hostname: string;
+  mailpit_port: number;
+  php_memory_limit: string;
+  php_max_execution_time: number;
+  php_upload_max_filesize: string;
+  php_post_max_size: string;
+  php_display_errors: boolean;
+  php_extensions: string[];
 }
-
 const DEFAULT_CONFIG: LampConfig = {
     name: "",
     php_version: "8.4",
-    apache_port: 8080,
-    mysql_port: 3307,
-    phpmyadmin_port: 8081,
+    apache_port: 80,
+    mysql_port: 3306,
+    phpmyadmin_port: 8585,
+    mailpit_port: 8686,
     mysql_root_password: "root",
     mysql_database: "db",
     mysql_user: "user",
     mysql_password: "pass",
     timezone: "UTC",
-    project_path: ""
+    project_path: "",
+    working_dir: null,
+    hostname: "localhost",
+    php_memory_limit: "256M",
+    php_max_execution_time: 120,
+    php_upload_max_filesize: "64M",
+    php_post_max_size: "64M",
+    php_display_errors: true,
+    php_extensions: ["pdo_mysql", "gd", "intl", "zip"]
 };
 
 function App() {
@@ -50,6 +68,7 @@ function App() {
 
   // Wizard state
   const [showWizard, setShowWizard] = createSignal(false);
+  const [showPhpSettings, setShowPhpSettings] = createSignal(false);
   const [isEditing, setIsEditing] = createSignal(false);
   const [wizardConfig, setWizardConfig] = createSignal<LampConfig>(DEFAULT_CONFIG);
 
@@ -91,7 +110,15 @@ function App() {
     const list = await invoke<string[]>("list_projects");
     setProjects(list);
     if (selectName) {
-        selectProject(selectName);
+        if (list.includes(selectName)) {
+          selectProject(selectName);
+        } else {
+          setCurrentProject(null);
+          setConfig(null);
+        }
+    } else if (currentProject() && !list.includes(currentProject()!)) {
+        setCurrentProject(null);
+        setConfig(null);
     } else if (list.length > 0 && !currentProject()) {
         selectProject(list[0]);
     } else if (list.length === 0) {
@@ -101,11 +128,15 @@ function App() {
   };
 
   const selectProject = async (name: string) => {
-    setCurrentProject(name);
-    const cfg = await invoke<LampConfig>("get_project_config", { name });
-    setConfig(cfg);
-    setShowMenu(false);
-    setIsRunning(false); // Reset status for simple UI, could use docker ps check here
+    try {
+      const cfg = await invoke<LampConfig>("get_project_config", { name });
+      setCurrentProject(name);
+      setConfig(cfg);
+      setShowMenu(false);
+      setIsRunning(false); // Reset status for simple UI, could use docker ps check here
+    } catch {
+      await refreshProjects();
+    }
   };
 
   const handleToggleAll = async () => {
@@ -115,6 +146,16 @@ function App() {
         setLogs([]);
         setShowLogs(true);
         await invoke("create_project", { config: config() });
+        
+        // Register hostname if it's not localhost
+        if (config()?.hostname && config()?.hostname !== "localhost") {
+            try {
+                await invoke("register_hostname", { hostname: config()?.hostname });
+            } catch (e) {
+                console.warn("Could not register hostname:", e);
+            }
+        }
+
         const res = await invoke<string>("docker_up", { projectPath: config()?.project_path });
         setIsRunning(true);
         setTimeout(() => setShowLogs(false), 2000);
@@ -134,6 +175,19 @@ function App() {
     refreshProjects(updated.name);
   };
 
+  const handleSavePhpConfig = async (newConfig: LampConfig) => {
+    const updated = await invoke<LampConfig>("save_project_config", { config: newConfig });
+    const phpIniContent = await invoke<string>("generate_php_ini_preview", { config: updated });
+    await invoke("write_php_ini", { name: updated.name, content: phpIniContent });
+    await invoke("create_project", { config: updated });
+    setShowPhpSettings(false);
+    setConfig(updated);
+    // Notify user to restart
+    if (isRunning()) {
+        alert(t("phpSaveSuccessRestart"));
+    }
+  };
+
   const handleDeleteProject = async () => {
     if (!currentProject()) return;
     const msg = t("confirmDelete").replace("{name}", currentProject()!);
@@ -145,7 +199,7 @@ function App() {
   };
 
   return (
-    <div class="flex flex-col bg-background text-foreground" style="height: 100vh; overflow: hidden;">
+    <div class="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
       <Navbar 
         currentProject={currentProject()} 
         projects={projects()} 
@@ -156,6 +210,7 @@ function App() {
         theme={theme()}
         toggleTheme={() => setTheme(theme() === "light" ? "dark" : "light")}
         phpVersion={config()?.php_version}
+        openPhpSettings={() => config() && setShowPhpSettings(true)}
       />
 
       <Dashboard 
@@ -183,6 +238,15 @@ function App() {
         initialConfig={wizardConfig()}
         onClose={() => setShowWizard(false)}
         onSave={handleSaveProject}
+      />
+
+      <PhpSettingsDialog 
+        show={showPhpSettings()}
+        projectName={currentProject()}
+        config={config()}
+        isRunning={isRunning()}
+        onClose={() => setShowPhpSettings(false)}
+        onSave={handleSavePhpConfig}
       />
 
       <Console 

@@ -1,9 +1,67 @@
-import { Show } from "solid-js";
+import { Show, JSX } from "solid-js";
 import { Card, CardContent } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Plus, Server, Database, Activity, LayoutDashboard } from "lucide-solid";
 import { t } from "~/i18n";
+
+import { StatusDot } from "~/components/ui/status-dot";
+
+// --- Sub-components ---
+
+const StatusCard = (props: { label: string; value: string | number; isRunning?: boolean }) => (
+  <Card class="bg-card/40 backdrop-blur-sm border-primary/10 transition-all hover:border-primary/20 hover:bg-card/50">
+    <CardContent class="p-6 text-center">
+      <p class="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-bold">{props.label}</p>
+      <div class="flex items-center justify-center gap-3">
+        <Show when={props.isRunning !== undefined}>
+          <StatusDot active={props.isRunning || false} animate={props.isRunning} size="md" />
+        </Show>
+        <p class={`text-2xl font-semibold tracking-tight ${props.isRunning === false ? 'text-muted-foreground' : 'text-foreground'}`}>
+          {props.value}
+        </p>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const ServiceRow = (props: { 
+  name: string; 
+  description: string; 
+  icon: any; 
+  isRunning: boolean;
+}) => (
+  <div class="group flex items-center justify-between p-5 rounded-2xl border border-primary/5 bg-card/20 backdrop-blur-md transition-all hover:bg-card/40 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+    <div class="flex items-center gap-4">
+      <div class="p-3 rounded-xl bg-primary/10 text-primary transition-all group-hover:scale-110 group-hover:bg-primary/20">
+        <props.icon class="h-6 w-6" />
+      </div>
+      <div>
+          <p class="font-semibold text-lg">{props.name}</p>
+          <p class="text-xs text-muted-foreground font-medium">{props.description}</p>
+      </div>
+    </div>
+    <Badge variant={props.isRunning ? "default" : "secondary"} class="rounded-lg px-3 py-1 font-bold text-[10px] uppercase tracking-wider">
+      {props.isRunning ? t("online") : t("offline")}
+    </Badge>
+  </div>
+);
+
+const EmptyState = (props: { onNew: () => void }) => (
+  <div class="text-center max-w-sm animate-in fade-in zoom-in duration-700">
+    <div class="inline-flex p-6 rounded-[2rem] bg-primary/5 mb-8 rotate-12 transition-transform hover:rotate-0">
+      <LayoutDashboard class="h-16 w-16 text-primary opacity-40" />
+    </div>
+    <h2 class="text-4xl font-black text-foreground mb-4 tracking-tight leading-tight">{t("readyToBuild")}</h2>
+    <p class="text-muted-foreground mb-10 leading-relaxed font-medium px-4">{t("dashboardDesc")}</p>
+    <Button onClick={props.onNew} size="lg" class="rounded-2xl px-10 h-14 text-base font-black shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:scale-105 active:scale-95 transition-all">
+        <Plus class="mr-3 h-6 w-6" />
+        {t("newProjectStack")}
+    </Button>
+  </div>
+);
+
+// --- Main Component ---
 
 interface DashboardProps {
   currentProject: string | null;
@@ -14,89 +72,50 @@ interface DashboardProps {
 
 export const Dashboard = (props: DashboardProps) => {
   return (
-    <main class="grow flex flex-col items-center justify-center p-8 bg-background transition-colors duration-300">
-      <Show when={props.currentProject} fallback={
-        <div class="text-center max-w-sm animate-in fade-in zoom-in duration-500">
-          <div class="inline-flex p-4 rounded-full bg-primary/5 mb-6">
-            <LayoutDashboard class="h-12 w-12 text-primary opacity-40" />
-          </div>
-          <h2 class="text-3xl font-bold text-foreground mb-3 tracking-tight">{t("readyToBuild")}</h2>
-          <p class="text-muted-foreground mb-8 leading-relaxed">{t("dashboardDesc")}</p>
-          <Button onClick={props.openWizard} size="lg" class="rounded-full px-8 shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all">
-              <Plus class="mr-2 h-5 w-5" />
-              {t("newProjectStack")}
-          </Button>
-        </div>
-      }>
-        <div class="w-full max-w-xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div class="grid grid-cols-2 gap-6">
-            <Card class="bg-card/40 backdrop-blur-sm border-primary/10">
-              <CardContent class="p-6 text-center">
-                <p class="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-bold">{t("engineStatus")}</p>
-                <div class="flex items-center justify-center gap-3">
-                  <div class={`h-3 w-3 rounded-full transition-all ${props.isRunning ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]' : 'bg-zinc-600'}`}></div>
-                  <p class={`text-2xl font-semibold tracking-tight ${props.isRunning ? 'text-foreground' : 'text-muted-foreground'}`}>
-                      {props.isRunning ? t("active") : t("standby")}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card class="bg-card/40 backdrop-blur-sm border-primary/10">
-              <CardContent class="p-6 text-center">
-                <p class="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-bold">{t("networkPort")}</p>
-                <p class="text-2xl font-semibold tracking-tight text-foreground">{props.config?.apache_port}</p>
-              </CardContent>
-            </Card>
+    <main class="relative grow overflow-auto bg-background p-5 transition-colors duration-300 md:p-8">
+      {/* Background Decor */}
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(var(--primary-rgb),0.1),transparent_50%)] pointer-events-none"></div>
+
+      <div class="relative z-10 flex min-h-full items-center justify-center">
+      <Show when={props.currentProject} fallback={<EmptyState onNew={props.openWizard} />}>
+        <div class="w-full max-w-xl space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 md:space-y-8">
+          <div class="grid gap-4 md:grid-cols-2 md:gap-6">
+            <StatusCard 
+              label={t("engineStatus")} 
+              value={props.isRunning ? t("active") : t("standby")} 
+              isRunning={props.isRunning} 
+            />
+            <StatusCard 
+              label={t("networkPort")} 
+              value={props.config?.apache_port || "---"} 
+            />
           </div>
 
           <div class="space-y-4">
-            <div class="group flex items-center justify-between p-5 rounded-2xl border bg-card/20 backdrop-blur-md transition-all hover:bg-card/40 hover:border-primary/30">
-              <div class="flex items-center gap-4">
-                <div class="p-3 rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
-                  <Server class="h-6 w-6" />
-                </div>
-                <div>
-                    <p class="font-semibold text-lg">{t("webServer")}</p>
-                    <p class="text-xs text-muted-foreground">{t("apache")} {props.config?.php_version ? `(PHP ${props.config.php_version})` : ''}</p>
-                </div>
-              </div>
-              <Badge variant={props.isRunning ? "default" : "secondary"} class="rounded-lg px-3 py-1">
-                {props.isRunning ? t("online") : t("offline")}
-              </Badge>
-            </div>
+            <ServiceRow 
+              name={t("webServer")}
+              description={`${t("apache")} ${props.config?.php_version ? `(PHP ${props.config.php_version})` : ''}`}
+              icon={Server}
+              isRunning={props.isRunning}
+            />
             
-            <div class="group flex items-center justify-between p-5 rounded-2xl border bg-card/20 backdrop-blur-md transition-all hover:bg-card/40 hover:border-primary/30">
-              <div class="flex items-center gap-4">
-                <div class="p-3 rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
-                  <Database class="h-6 w-6" />
-                </div>
-                <div>
-                    <p class="font-semibold text-lg">{t("databaseEngine")}</p>
-                    <p class="text-xs text-muted-foreground">{t("mariaDb")}</p>
-                </div>
-              </div>
-              <Badge variant={props.isRunning ? "default" : "secondary"} class="rounded-lg px-3 py-1">
-                {props.isRunning ? t("online") : t("offline")}
-              </Badge>
-            </div>
+            <ServiceRow 
+              name={t("databaseEngine")}
+              description={t("mariaDb")}
+              icon={Database}
+              isRunning={props.isRunning}
+            />
 
-            <div class="group flex items-center justify-between p-5 rounded-2xl border bg-card/20 backdrop-blur-md transition-all hover:bg-card/40 hover:border-primary/30">
-              <div class="flex items-center gap-4">
-                <div class="p-3 rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
-                  <Activity class="h-6 w-6" />
-                </div>
-                <div>
-                    <p class="font-semibold text-lg">{t("adminInterface")}</p>
-                    <p class="text-xs text-muted-foreground">{t("phpMyAdmin")}</p>
-                </div>
-              </div>
-              <Badge variant={props.isRunning ? "default" : "secondary"} class="rounded-lg px-3 py-1">
-                {props.isRunning ? t("online") : t("offline")}
-              </Badge>
-            </div>
+            <ServiceRow 
+              name={t("adminInterface")}
+              description={t("phpMyAdmin")}
+              icon={Activity}
+              isRunning={props.isRunning}
+            />
           </div>
         </div>
       </Show>
+      </div>
     </main>
   );
 };

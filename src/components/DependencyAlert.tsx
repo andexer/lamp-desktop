@@ -8,9 +8,27 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
-import { AlertTriangle, Download, Terminal } from "lucide-solid";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { t } from "~/i18n";
+import { StatusDot } from "~/components/ui/status-dot";
+
+// --- Sub-components ---
+
+const DepStatusRow = (props: { name: string; isInstalled: boolean }) => (
+  <div class="flex items-center justify-between p-3.5 rounded-xl border border-primary/5 bg-background/50">
+    <span class="font-bold text-sm flex items-center gap-3 text-muted-foreground">
+      <Terminal class="h-4 w-4 opacity-50" /> {props.name}
+    </span>
+    <div class={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+        props.isInstalled 
+            ? 'bg-emerald-500/10 text-emerald-500' 
+            : 'bg-destructive/10 text-destructive'
+    }`}>
+      <StatusDot active={props.isInstalled} size="sm" animate={!props.isInstalled} />
+      {props.isInstalled ? t("installed") : t("missing")}
+    </div>
+  </div>
+);
+
+// --- Main Component ---
 
 export interface DependencyStatus {
   docker: boolean;
@@ -34,51 +52,39 @@ export const DependencyAlert = (props: DependencyAlertProps) => {
 
   return (
     <Dialog open={isMissing()} onOpenChange={(open) => !open && props.onClose()}>
-      <DialogContent class="sm:max-w-[500px] border-destructive/20 bg-card/95 backdrop-blur-xl">
-        <DialogHeader class="gap-2">
-          <div class="flex items-center gap-3 text-destructive">
-            <div class="p-2 rounded-full bg-destructive/10">
-              <AlertTriangle class="h-6 w-6" />
+      <DialogContent class="w-[min(94vw,500px)] max-w-none p-0 overflow-hidden border-destructive/20 bg-card/95 backdrop-blur-3xl shadow-2xl rounded-3xl">
+        <DialogHeader class="p-5 pb-0 gap-4 md:p-8 md:pb-0">
+          <div class="flex items-center gap-4 text-destructive">
+            <div class="p-3 rounded-2xl bg-destructive/10 shadow-inner">
+              <AlertTriangle class="h-7 w-7" />
             </div>
-            <DialogTitle class="text-xl">{t("missingDeps")}</DialogTitle>
+            <div>
+              <DialogTitle class="text-2xl font-black tracking-tight">{t("missingDeps")}</DialogTitle>
+              <DialogDescription class="text-base font-medium opacity-70 mt-1">
+                {t("depsDesc")}
+              </DialogDescription>
+            </div>
           </div>
-          <DialogDescription class="text-base mt-2">
-            {t("depsDesc")}
-          </DialogDescription>
         </DialogHeader>
 
-        <div class="py-4 space-y-4">
-          <div class="p-4 rounded-xl border bg-muted/30 space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="font-medium flex items-center gap-2">
-                <Terminal class="h-4 w-4" /> {t("dockerEngine")}
-              </span>
-              <span class={`text-sm font-bold px-2 py-0.5 rounded ${props.status?.docker ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
-                {props.status?.docker ? t("installed") : t("missing")}
-              </span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="font-medium flex items-center gap-2">
-                <Terminal class="h-4 w-4" /> {t("dockerCompose")}
-              </span>
-              <span class={`text-sm font-bold px-2 py-0.5 rounded ${props.status?.docker_compose ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
-                {props.status?.docker_compose ? t("installed") : t("missing")}
-              </span>
-            </div>
+        <div class="p-5 space-y-6 md:p-8">
+          <div class="space-y-3">
+            <DepStatusRow name={t("dockerEngine")} isInstalled={props.status?.docker || false} />
+            <DepStatusRow name={t("dockerCompose")} isInstalled={props.status?.docker_compose || false} />
           </div>
 
-          <div class="text-sm text-muted-foreground bg-primary/5 p-3 rounded-lg border border-primary/10">
-            <p class="font-semibold text-foreground mb-1">{t("quickInstall")}</p>
+          <div class="text-[11px] text-muted-foreground bg-primary/5 p-5 rounded-2xl border border-primary/10 leading-relaxed font-medium">
+            <p class="font-black text-primary uppercase tracking-widest mb-2">{t("quickInstall")}</p>
             <p>{t("quickInstallDesc")}</p>
           </div>
         </div>
 
-        <DialogFooter class="flex flex-col sm:flex-row gap-2 sm:justify-between">
-          <Button variant="outline" onClick={props.onClose}>
+        <DialogFooter class="p-5 pt-0 flex flex-col gap-4 items-stretch md:p-8 md:pt-0 sm:flex-row sm:justify-between sm:items-center">
+          <Button variant="ghost" onClick={props.onClose} class="rounded-2xl px-6 font-bold h-12 order-2 sm:order-1 opacity-60 hover:opacity-100">
             {t("continueAnyway")}
           </Button>
-          <Button variant="default" onClick={handleOpenDocs} class="gap-2 shadow-lg shadow-primary/20">
-            <Download class="h-4 w-4" />
+          <Button variant="default" onClick={handleOpenDocs} class="rounded-2xl px-8 h-12 font-black shadow-2xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-95 gap-2 order-1 sm:order-2 w-full sm:w-auto">
+            <Download class="h-5 w-5" />
             {t("installGuide")}
           </Button>
         </DialogFooter>

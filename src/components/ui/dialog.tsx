@@ -29,13 +29,13 @@ const DialogContent: Component<any> = (props) => {
       <DialogOverlay />
       <DialogPrimitive.Content
         class={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-full max-width-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[closed]:zoom-out-95 data-[expanded]:zoom-in-95 data-[closed]:slide-out-to-left-1/2 data-[closed]:slide-out-to-top-[48%] data-[expanded]:slide-in-from-left-1/2 data-[expanded]:slide-in-from-top-[48%] rounded-lg",
+          "fixed inset-0 z-50 grid w-screen h-screen max-w-none max-h-none gap-4 overflow-hidden border bg-background p-6 shadow-lg duration-200 data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[closed]:zoom-out-95 data-[expanded]:zoom-in-95 rounded-none md:translate-x-0 md:translate-y-0 md:data-[closed]:slide-out-to-top-0 md:data-[expanded]:slide-in-from-top-0",
           local.class
         )}
         {...others}
       >
         {local.children}
-        <DialogPrimitive.CloseButton class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+        <DialogPrimitive.CloseButton class="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-red-500/25 bg-red-500/12 text-red-400 shadow-[0_8px_24px_rgba(239,68,68,0.18)] transition-all hover:bg-red-500/20 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:ring-offset-0 disabled:pointer-events-none">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           <span class="sr-only">Close</span>
         </DialogPrimitive.CloseButton>
